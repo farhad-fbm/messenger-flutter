@@ -1,7 +1,8 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:file_picker/file_picker.dart';
-
 
 void main() => runApp(const MaterialApp(home: TTSApp()));
 
@@ -19,12 +20,48 @@ class _TTSAppState extends State<TTSApp> {
 
   String? savedFilePath;
   String? selectedDir;
-
   double pitch = 1.0;
   double speechRate = 0.5;
 
+  Future<void> getAvailableLanguages() async {
+    try {
+      List<dynamic> languages = await flutterTts.getLanguages;
+      log("Supported Languages: $languages");
+    } catch (e) {
+      log("Error fetching languages: $e");
+    }
+  }
+
+  Map<String, List<Map<String, String>>> languageVoiceOptions = {};
+  Future<void> loadAvailableVoices() async {
+    try {
+      // all voices
+      List<dynamic> voices = await flutterTts.getVoices;
+      // voices by language
+      Map<String, List<Map<String, String>>> voiceMap = {};
+
+      //--
+      for (var voice in voices) {
+        String language = voice['language'] ?? 'Unknown';
+        String name = voice['name'] ?? 'Unnamed';
+
+        if (!voiceMap.containsKey(language)) {
+          voiceMap[language] = [];
+        }
+        voiceMap[language]?.add({'name': name});
+      }
+
+      setState(() {
+        log("Voice Map: $voiceMap");
+        languageVoiceOptions = voiceMap;
+      });
+    } catch (e) {
+      log("Error fetching voices: $e");
+    }
+  }
+
   // Language and voice options with unique voices and model
-  final Map<String, List<Map<String, String>>> languageVoiceOptions = {
+  final Map<String, List<Map<String, String>>> customLanguageVoiceOptions = {
     "en-US": [
       {"name": "en-us-x-sfg-local", "model": "model1"},
       {"name": "en-us-x-sfh-local", "model": "model2"},
@@ -53,7 +90,9 @@ class _TTSAppState extends State<TTSApp> {
   @override
   void initState() {
     super.initState();
-    selectedVoice = languageVoiceOptions[selectedLanguage]!.first;
+    getAvailableLanguages();
+    loadAvailableVoices();
+    selectedVoice = customLanguageVoiceOptions[selectedLanguage]!.first;
   }
 
   // Speak text
@@ -140,8 +179,6 @@ class _TTSAppState extends State<TTSApp> {
     );
   }
 
-
-
   String _languageName(String code) {
     switch (code) {
       case "en-US":
@@ -190,7 +227,7 @@ class _TTSAppState extends State<TTSApp> {
 
   @override
   Widget build(BuildContext context) {
-    final voices = languageVoiceOptions[selectedLanguage]!;
+    final voices = customLanguageVoiceOptions[selectedLanguage]!;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Text → Voice')),
@@ -207,7 +244,7 @@ class _TTSAppState extends State<TTSApp> {
                 ),
                 initialValue: selectedLanguage,
                 items:
-                    languageVoiceOptions.keys
+                    customLanguageVoiceOptions.keys
                         .map(
                           (lang) => DropdownMenuItem(
                             value: lang,
@@ -219,7 +256,7 @@ class _TTSAppState extends State<TTSApp> {
                   if (value != null) {
                     setState(() {
                       selectedLanguage = value;
-                      selectedVoice = languageVoiceOptions[value]?.first;
+                      selectedVoice = customLanguageVoiceOptions[value]?.first;
                     });
                   }
                 },
@@ -310,7 +347,6 @@ class _TTSAppState extends State<TTSApp> {
                     icon: const Icon(Icons.download),
                     label: const Text('Download'),
                   ),
-                  
                 ],
               ),
 
